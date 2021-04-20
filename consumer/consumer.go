@@ -47,12 +47,12 @@ type Consumer struct {
 
 	worker Worker
 
-	retryPeriod time.Duration
-	initFunc    func(conn AMQPConnection) (AMQPChannel, error)
-	ctx         context.Context
-	cancelFunc  context.CancelFunc
-	logger      logger.Logger
-	closeCh     chan struct{}
+	retryPeriodFunc func(int) time.Duration
+	initFunc        func(conn AMQPConnection) (AMQPChannel, error)
+	ctx             context.Context
+	cancelFunc      context.CancelFunc
+	logger          logger.Logger
+	closeCh         chan struct{}
 
 	mu       sync.Mutex
 	stateChs []chan State
@@ -73,12 +73,14 @@ type Consumer struct {
 	declareNoWait     bool
 	declareArgs       amqp.Table
 
-	consumer  string
-	autoAck   bool
-	exclusive bool
-	noLocal   bool
-	noWait    bool
-	args      amqp.Table
+	consumer   string
+	autoAck    bool
+	exclusive  bool
+	noLocal    bool
+	noWait     bool
+	args       amqp.Table
+
+	retryCounter *retryCounter
 }
 
 func New(
@@ -113,8 +115,10 @@ func New(
 		c.ctx, c.cancelFunc = context.WithCancel(context.Background())
 	}
 
-	if c.retryPeriod == 0 {
-		c.retryPeriod = time.Second * 5
+	if c.retryPeriodFunc == nil {
+		c.retryPeriodFunc = func(_ int) time.Duration {
+			return time.Second * 5
+		}
 	}
 
 	if c.logger == nil {
@@ -139,6 +143,10 @@ func New(
 		}
 	}
 
+	rc := newRetryCounter(c.ctx)
+	c.retryCounter = rc
+	c.stateChs = append(c.stateChs, rc.ch)
+
 	go c.connectionState()
 
 	return c, nil
@@ -157,8 +165,14 @@ func WithContext(ctx context.Context) Option {
 }
 
 func WithRetryPeriod(dur time.Duration) Option {
+	return WithRetryPeriodFunc(func(_ int) time.Duration {
+		return dur
+	})
+}
+
+func WithRetryPeriodFunc(durFunc func(retryCount int) time.Duration) Option {
 	return func(c *Consumer) {
-		c.retryPeriod = dur
+		c.retryPeriodFunc = durFunc
 	}
 }
 
@@ -385,6 +399,7 @@ func (c *Consumer) consumeState(ch AMQPChannel, queue string, connCloseCh <-chan
 
 	state := c.notifyReady(queue)
 
+
 	go func() {
 		defer close(workerDoneCh)
 		c.worker.Serve(workerCtx, c.handler, msgCh)
@@ -419,7 +434,7 @@ func (c *Consumer) consumeState(ch AMQPChannel, queue string, connCloseCh <-chan
 }
 
 func (c *Consumer) waitRetry(err error) error {
-	timer := time.NewTimer(c.retryPeriod)
+	timer := time.NewTimer(c.retryPeriodFunc(c.retryCounter.read()))
 	defer func() {
 		timer.Stop()
 		select {
