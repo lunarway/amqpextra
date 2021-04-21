@@ -6,29 +6,28 @@ import (
 )
 
 type retryCounter struct {
-	mu sync.RWMutex
+	mu         sync.RWMutex
 	retryCount int
 
-	ch chan State
+	ch         chan State
 }
 
-func newRetryCounter(ctx context.Context) *retryCounter {
-	r := &retryCounter{
-		ch: make(chan State, 1),
+func newRetryCounter() *retryCounter {
+	return &retryCounter{
+		ch : make(chan State, 2),
 	}
+}
 
-	go func() {
-		for {
-			select {
-			case state := <- r.ch:
-				r.update(state)
-			case <-ctx.Done():
-				return
-			}
+// updateLoop update the internal retry counter via notifications on its channel. It blocks until ctx is cancelled.
+func (r *retryCounter) updateLoop(ctx context.Context)  {
+	for {
+		select {
+		case state := <- r.ch:
+			r.update(state)
+		case <-ctx.Done():
+			return
 		}
-	}()
-
-	return r
+	}
 }
 
 func (r *retryCounter) read() int {
