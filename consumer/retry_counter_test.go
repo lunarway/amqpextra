@@ -2,12 +2,15 @@ package consumer
 
 import (
 	"context"
+	"go.uber.org/goleak"
 	"testing"
 	"time"
 )
 
 func TestRetryCounter(main *testing.T) {
 	main.Run("Is initially zero", func(t *testing.T) {
+		defer goleak.VerifyNone(t)
+
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -17,6 +20,8 @@ func TestRetryCounter(main *testing.T) {
 	})
 
 	main.Run("Is one when unready once", func(t *testing.T) {
+		defer goleak.VerifyNone(t)
+
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -31,6 +36,8 @@ func TestRetryCounter(main *testing.T) {
 	})
 
 	main.Run("Is two when unready twice", func(t *testing.T) {
+		defer goleak.VerifyNone(t)
+
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -48,6 +55,8 @@ func TestRetryCounter(main *testing.T) {
 	})
 
 	main.Run("Is zero when incremented and reset", func(t *testing.T) {
+		defer goleak.VerifyNone(t)
+
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
