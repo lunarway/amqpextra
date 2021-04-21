@@ -6,14 +6,14 @@ import (
 )
 
 func TestRetryCounter(main *testing.T) {
-	main.Run("is initially zero", func(t *testing.T) {
+	main.Run("Is initially zero", func(t *testing.T) {
 		rc := newRetryCounter()
 		counter := rc.read()
 
 		assert.Equal(t, 0, counter)
 	})
 
-	main.Run("RetryCount is one when incremented once", func(t *testing.T) {
+	main.Run("Is one when incremented once", func(t *testing.T) {
 		rc := newRetryCounter()
 		assert.Equal(t, 0, rc.read())
 
@@ -22,7 +22,7 @@ func TestRetryCounter(main *testing.T) {
 		assert.Equal(t, 1, rc.read())
 	})
 
-	main.Run("RetryCount is two when incremented twice", func(t *testing.T) {
+	main.Run("Is two when incremented twice", func(t *testing.T) {
 		rc := newRetryCounter()
 		assert.Equal(t, 0, rc.read())
 
@@ -32,7 +32,7 @@ func TestRetryCounter(main *testing.T) {
 		assert.Equal(t, 2, rc.read())
 	})
 
-	main.Run("RetryCount is zero when incremented and reset", func(t *testing.T) {
+	main.Run("Is zero when incremented and reset", func(t *testing.T) {
 		rc := newRetryCounter()
 		assert.Equal(t, 0, rc.read())
 
