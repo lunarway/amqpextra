@@ -47,12 +47,12 @@ type Consumer struct {
 
 	worker Worker
 
-	retryPeriodFunc func(int) time.Duration
-	initFunc    func(conn AMQPConnection) (AMQPChannel, error)
-	ctx         context.Context
-	cancelFunc  context.CancelFunc
-	logger      logger.Logger
-	closeCh     chan struct{}
+	nextRetryPeriod func(attemptNumber int) time.Duration
+	initFunc        func(conn AMQPConnection) (AMQPChannel, error)
+	ctx             context.Context
+	cancelFunc      context.CancelFunc
+	logger          logger.Logger
+	closeCh         chan struct{}
 
 	mu       sync.Mutex
 	stateChs []chan State
@@ -115,8 +115,8 @@ func New(
 		c.ctx, c.cancelFunc = context.WithCancel(context.Background())
 	}
 
-	if c.retryPeriodFunc == nil {
-		c.retryPeriodFunc = func(_ int) time.Duration {
+	if c.nextRetryPeriod == nil {
+		c.nextRetryPeriod = func(_ int) time.Duration {
 			return time.Second * 5
 		}
 	}
@@ -177,7 +177,7 @@ func WithRetryPeriod(dur time.Duration) Option {
 
 func WithRetryPeriodFunc(durFunc func(retryCount int) time.Duration) Option {
 	return func(c *Consumer) {
-		c.retryPeriodFunc = durFunc
+		c.nextRetryPeriod = durFunc
 	}
 }
 
@@ -403,7 +403,7 @@ func (c *Consumer) consumeState(ch AMQPChannel, queue string, connCloseCh <-chan
 	c.logger.Printf("[DEBUG] consumer ready")
 
 	state := c.notifyReady(queue)
-	
+
 	go func() {
 		defer close(workerDoneCh)
 		c.worker.Serve(workerCtx, c.handler, msgCh)
@@ -438,7 +438,7 @@ func (c *Consumer) consumeState(ch AMQPChannel, queue string, connCloseCh <-chan
 }
 
 func (c *Consumer) waitRetry(err error) error {
-	timer := time.NewTimer(c.retryPeriodFunc(c.retryCounter.read()))
+	timer := time.NewTimer(c.nextRetryPeriod(c.retryCounter.read()))
 	defer func() {
 		timer.Stop()
 		select {
