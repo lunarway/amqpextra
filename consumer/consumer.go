@@ -143,14 +143,10 @@ func New(
 		}
 	}
 
-	rc := newRetryCounter()
+	ch := make(chan State, 2)
+	rc := newRetryCounter(c.ctx, ch)
 	c.retryCounter = rc
 	c.stateChs = append(c.stateChs, rc.ch)
-	go func() {
-		rc.updateLoop(c.ctx)
-
-		close(rc.ch)
-	}()
 
 	go c.connectionState()
 

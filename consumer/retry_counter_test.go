@@ -1,44 +1,88 @@
 package consumer
 
 import (
-	"github.com/stretchr/testify/assert"
+	"context"
 	"testing"
+	"time"
 )
 
 func TestRetryCounter(main *testing.T) {
 	main.Run("Is initially zero", func(t *testing.T) {
-		rc := newRetryCounter()
-		counter := rc.read()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-		assert.Equal(t, 0, counter)
+		rc := newRetryCounter(ctx, make(chan State))
+
+		assertRetryCount(t, rc, 0)
 	})
 
-	main.Run("Is one when incremented once", func(t *testing.T) {
-		rc := newRetryCounter()
-		assert.Equal(t, 0, rc.read())
+	main.Run("Is one when unready once", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-		rc.increment()
+		ch := make(chan State)
+		rc := newRetryCounter(ctx, ch)
 
-		assert.Equal(t, 1, rc.read())
+		ch <- State{
+			Unready: &Unready{},
+		}
+
+		assertRetryCount(t, rc, 1)
 	})
 
-	main.Run("Is two when incremented twice", func(t *testing.T) {
-		rc := newRetryCounter()
-		assert.Equal(t, 0, rc.read())
+	main.Run("Is two when unready twice", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-		rc.increment()
-		rc.increment()
+		ch := make(chan State)
+		rc := newRetryCounter(ctx, ch)
 
-		assert.Equal(t, 2, rc.read())
+		ch <- State{
+			Unready: &Unready{},
+		}
+		ch <- State{
+			Unready: &Unready{},
+		}
+
+		assertRetryCount(t, rc, 2)
 	})
 
 	main.Run("Is zero when incremented and reset", func(t *testing.T) {
-		rc := newRetryCounter()
-		assert.Equal(t, 0, rc.read())
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-		rc.increment()
-		rc.reset()
+		ch := make(chan State)
+		rc := newRetryCounter(ctx, ch)
 
-		assert.Equal(t, 0, rc.read())
+		ch <- State{
+			Unready: &Unready{},
+		}
+		ch <- State{
+			Ready: &Ready{},
+		}
+
+		assertRetryCount(t, rc, 0)
 	})
+}
+
+func assertRetryCount(t *testing.T, rc *retryCounter, expectedRetryCount int) {
+	timer := time.NewTimer(time.Millisecond * 10)
+	var lastActual int
+	for {
+		select {
+		case <-timer.C:
+			t.Errorf("retryCounter did not end up with correct value: %d, actual value: %d", expectedRetryCount, lastActual)
+			return
+		default:
+			actual := rc.read()
+			if expectedRetryCount != actual {
+				lastActual = actual
+				continue
+			}
+
+			if expectedRetryCount == actual {
+				return
+			}
+		}
+	}
 }

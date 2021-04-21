@@ -12,13 +12,21 @@ type retryCounter struct {
 	ch         chan State
 }
 
-func newRetryCounter() *retryCounter {
-	return &retryCounter{
-		ch : make(chan State, 2),
+func newRetryCounter(ctx context.Context, ch chan State) *retryCounter {
+	r := &retryCounter{
+		ch: ch,
 	}
+
+	go func() {
+		defer close(ch)
+
+		r.updateLoop(ctx)
+	}()
+
+	return r
 }
 
-// updateLoop update the internal retry counter via notifications on its channel. It blocks until ctx is cancelled.
+// updateLoop updates the internal retry counter via notifications on its channel. It blocks until ctx is cancelled.
 func (r *retryCounter) updateLoop(ctx context.Context)  {
 	for {
 		select {
