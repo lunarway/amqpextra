@@ -6,7 +6,7 @@ import (
 )
 
 func TestRetryCounter(main *testing.T) {
-	main.Run("RetryCount is initially zero", func(t *testing.T) {
+	main.Run("is initially zero", func(t *testing.T) {
 		rc := newRetryCounter()
 		counter := rc.read()
 
