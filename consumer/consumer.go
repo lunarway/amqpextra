@@ -403,8 +403,7 @@ func (c *Consumer) consumeState(ch AMQPChannel, queue string, connCloseCh <-chan
 	c.logger.Printf("[DEBUG] consumer ready")
 
 	state := c.notifyReady(queue)
-
-
+	
 	go func() {
 		defer close(workerDoneCh)
 		c.worker.Serve(workerCtx, c.handler, msgCh)
