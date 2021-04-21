@@ -47,12 +47,12 @@ type Consumer struct {
 
 	worker Worker
 
-	retryPeriodFunc func(int) time.Duration
-	initFunc        func(conn AMQPConnection) (AMQPChannel, error)
-	ctx             context.Context
-	cancelFunc      context.CancelFunc
-	logger          logger.Logger
-	closeCh         chan struct{}
+	retryPeriod func(int) time.Duration
+	initFunc    func(conn AMQPConnection) (AMQPChannel, error)
+	ctx         context.Context
+	cancelFunc  context.CancelFunc
+	logger      logger.Logger
+	closeCh     chan struct{}
 
 	mu       sync.Mutex
 	stateChs []chan State
@@ -73,12 +73,12 @@ type Consumer struct {
 	declareNoWait     bool
 	declareArgs       amqp.Table
 
-	consumer   string
-	autoAck    bool
-	exclusive  bool
-	noLocal    bool
-	noWait     bool
-	args       amqp.Table
+	consumer  string
+	autoAck   bool
+	exclusive bool
+	noLocal   bool
+	noWait    bool
+	args      amqp.Table
 
 	retryCounter *retryCounter
 }
