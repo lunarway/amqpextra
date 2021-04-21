@@ -47,7 +47,7 @@ type Consumer struct {
 
 	worker Worker
 
-	retryPeriod func(int) time.Duration
+	retryPeriodFunc func(int) time.Duration
 	initFunc    func(conn AMQPConnection) (AMQPChannel, error)
 	ctx         context.Context
 	cancelFunc  context.CancelFunc
